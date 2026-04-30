@@ -1,6 +1,6 @@
-# Qibla Compass
+# Aira Qibla Compass
 
-A beautifully designed, accurate, and offline-capable Qibla direction application built with Flutter.
+**Aira Qibla Compass** — A beautifully designed, accurate, and offline-capable Qibla direction application built with Flutter.
 
 This application helps users determine the precise direction of the Qibla (the Ka'bah in Masjid al-Harām, Mecca) from anywhere in the world by utilizing the device's GPS and compass sensors. It functions seamlessly on both Android and iOS devices.
 

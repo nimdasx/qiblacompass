@@ -10,7 +10,7 @@ class QiblaPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Qibla Compass'),
+        title: const Text('Aira Qibla Compass'),
       ),
       body: Consumer<QiblaViewModel>(
         builder: (context, viewModel, child) {
