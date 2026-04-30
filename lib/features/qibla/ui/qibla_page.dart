@@ -1,0 +1,131 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../viewmodel/qibla_viewmodel.dart';
+import 'qibla_compass_painter.dart';
+
+class QiblaPage extends StatelessWidget {
+  const QiblaPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Qibla Compass'),
+      ),
+      body: Consumer<QiblaViewModel>(
+        builder: (context, viewModel, child) {
+          if (viewModel.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (viewModel.errorMessage != null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                    const SizedBox(height: 20),
+                    Text(
+                      viewModel.errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () => viewModel.retryPermissions(),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          if (viewModel.heading == null || viewModel.qiblaBearing == null) {
+            return const Center(child: Text('Waiting for sensor data...'));
+          }
+
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                Text(
+                  'Mecca, Saudi Arabia',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (viewModel.distanceToQibla != null)
+                  Text(
+                    '${(viewModel.distanceToQibla! / 1000).toStringAsFixed(1)} km away',
+                    style: const TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                const SizedBox(height: 60),
+                
+                // Compass
+                Expanded(
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: CustomPaint(
+                      painter: QiblaCompassPainter(
+                        heading: viewModel.heading!,
+                        qiblaBearing: viewModel.qiblaBearing!,
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 40),
+                // Location Details
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildInfoColumn('Latitude', viewModel.userLatitude!.toStringAsFixed(4)),
+                      _buildInfoColumn('Longitude', viewModel.userLongitude!.toStringAsFixed(4)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInfoColumn(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}
