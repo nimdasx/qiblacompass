@@ -1,0 +1,7 @@
+flutter create --empty --org id.web.sofy .
+flutter clean
+flutter pub get
+flutter run
+
+cd android
+keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
