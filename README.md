@@ -1,17 +1,17 @@
 # Aira Qibla Compass
 
-**Aira Qibla Compass** — A beautifully designed, accurate, and offline-capable Qibla direction application built with Flutter.
+**Aira Qibla Compass** — A Flutter application that calculates and displays the Qibla direction using the device location and compass sensors.
 
 This application helps users determine the precise direction of the Qibla (the Ka'bah in Masjid al-Harām, Mecca) from anywhere in the world by utilizing the device's GPS and compass sensors. It functions seamlessly on both Android and iOS devices.
 
 ## 🎯 Features
 
 *   **Real-time Accurate Direction:** Computes the bearing to the Qibla relative to magnetic north.
-*   **Beautiful Custom Compass:** Uses a performant `CustomPainter` to render a smooth, elegant compass with a dynamic Qibla arrow indicator.
+*   **Custom Compass:** Uses a `CustomPainter` to render a compass with a dynamic Qibla arrow indicator.
 *   **Distance & Location Info:** Displays the user's current latitude, longitude, and precise distance to Mecca.
-*   **Offline Mode Support:** Relies on the device's hardware sensors, requiring no external API calls for location or direction (once location is acquired).
+*   **Last Location Fallback:** Uses the device's last known location or a locally cached location while waiting for fresh GPS data.
 *   **Privacy-First:** All calculations are performed strictly locally on the device. No user location data is transmitted to external servers.
-*   **Responsive UI:** Adapts gracefully to different screen orientations and supports both Light and Dark modes.
+*   **Responsive UI:** Uses a scroll-safe layout and supports both light and dark modes.
 
 ## 🛠️ Technology Stack
 
@@ -20,7 +20,7 @@ This application helps users determine the precise direction of the Qibla (the K
 *   **Location Services:** `geolocator`
 *   **Compass/Heading:** `flutter_compass`
 *   **Reactive Streams:** `rxdart`
-*   **Permissions:** `permission_handler`
+*   **Local Cache:** `shared_preferences`
 
 ## 🏗️ Architecture
 
@@ -29,6 +29,24 @@ The app is built with a clean, modular architecture separating the UI from the b
 *   **`lib/core/`**: Contains utility classes (Qibla calculator, constants) and hardware interaction services (`location_service`, `compass_service`).
 *   **`lib/features/qibla/`**: Holds the core Qibla feature divided into `ui` (pages, painters) and `viewmodel` (handling business logic and stream aggregation).
 *   **`lib/themes/`**: Contains the design system and light/dark theme configurations.
+
+## ✅ Current Scope
+
+Implemented:
+
+*   Runtime location permission flow through `geolocator`.
+*   Real-time location and compass stream aggregation.
+*   Bearing and distance calculation to the Ka'bah.
+*   Last-known/cached location fallback.
+*   Basic responsive Qibla compass screen.
+*   Unit tests for the Qibla calculation utility.
+
+Not implemented yet:
+
+*   Compass calibration guidance.
+*   Settings for units, theme selection, or notifications.
+*   Location accuracy and last update timestamp display.
+*   Production release signing configuration.
 
 ## 🚀 Getting Started
 
@@ -52,6 +70,13 @@ The app is built with a clean, modular architecture separating the UI from the b
     ```bash
     flutter run
     ```
+
+### Quality Checks
+
+```bash
+flutter analyze
+flutter test
+```
 
 ### Android Permissions
 The app requests runtime permissions for:

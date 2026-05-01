@@ -36,24 +36,53 @@ class QiblaViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   StreamSubscription? _combinedStreamSubscription;
+  int _initToken = 0;
 
   QiblaViewModel(this._locationService, this._compassService) {
     _init();
   }
 
   Future<void> _init() async {
+    final initToken = ++_initToken;
+    await _combinedStreamSubscription?.cancel();
+    _combinedStreamSubscription = null;
+
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     _hasPermissions = await _locationService.handlePermissions();
+    if (initToken != _initToken) return;
+
     if (!_hasPermissions) {
-      _errorMessage = 'Location permissions are required to calculate Qibla direction.';
+      _errorMessage =
+          'Location permissions are required to calculate Qibla direction.';
       _isLoading = false;
       notifyListeners();
       return;
     }
 
+    await _loadCachedLocation();
+    if (initToken != _initToken) return;
+
     _startStreams();
+  }
+
+  Future<void> _loadCachedLocation() async {
+    final lastKnownLocation = await _locationService.getLastKnownLocation();
+    if (lastKnownLocation != null) {
+      _updateLocation(lastKnownLocation.latitude, lastKnownLocation.longitude);
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    final cachedLocation = await _locationService.getCachedLocation();
+    if (cachedLocation != null) {
+      _updateLocation(cachedLocation.latitude, cachedLocation.longitude);
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void _startStreams() {
@@ -68,37 +97,43 @@ class QiblaViewModel extends ChangeNotifier {
     }
 
     // Use RxDart to combine the latest values from both streams
-    _combinedStreamSubscription = Rx.combineLatest2(
-      locationStream,
-      compassStream,
-      (Position position, CompassEvent compassEvent) {
-        return {'position': position, 'compass': compassEvent};
-      },
-    ).listen((data) {
-      final position = data['position'] as Position;
-      final compassEvent = data['compass'] as CompassEvent;
+    _combinedStreamSubscription =
+        Rx.combineLatest2(locationStream, compassStream, (
+          Position position,
+          CompassEvent compassEvent,
+        ) {
+          return {'position': position, 'compass': compassEvent};
+        }).listen(
+          (data) {
+            final position = data['position'] as Position;
+            final compassEvent = data['compass'] as CompassEvent;
 
-      _userLatitude = position.latitude;
-      _userLongitude = position.longitude;
-      _heading = compassEvent.heading;
+            unawaited(_locationService.cacheLocation(position));
+            _updateLocation(position.latitude, position.longitude);
+            _heading = compassEvent.heading;
 
-      if (_userLatitude != null && _userLongitude != null) {
-        _qiblaBearing = QiblaCalc.calculateBearing(_userLatitude!, _userLongitude!);
-        _distanceToQibla = QiblaCalc.calculateDistance(_userLatitude!, _userLongitude!);
-      }
+            _isLoading = false;
+            _errorMessage = null;
+            notifyListeners();
+          },
+          onError: (error) {
+            _errorMessage = 'Error receiving sensor data: $error';
+            _isLoading = false;
+            notifyListeners();
+          },
+        );
+  }
 
-      _isLoading = false;
-      _errorMessage = null;
-      notifyListeners();
-    }, onError: (error) {
-      _errorMessage = 'Error receiving sensor data: $error';
-      _isLoading = false;
-      notifyListeners();
-    });
+  void _updateLocation(double latitude, double longitude) {
+    _userLatitude = latitude;
+    _userLongitude = longitude;
+    _qiblaBearing = QiblaCalc.calculateBearing(latitude, longitude);
+    _distanceToQibla = QiblaCalc.calculateDistance(latitude, longitude);
   }
 
   @override
   void dispose() {
+    _initToken++;
     _combinedStreamSubscription?.cancel();
     super.dispose();
   }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/qibla_viewmodel.dart';
@@ -9,9 +11,7 @@ class QiblaPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Aira Qibla Compass'),
-      ),
+      appBar: AppBar(title: const Text('Aira Qibla Compass')),
       body: Consumer<QiblaViewModel>(
         builder: (context, viewModel, child) {
           if (viewModel.isLoading) {
@@ -25,7 +25,11 @@ class QiblaPage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 60,
+                    ),
                     const SizedBox(height: 20),
                     Text(
                       viewModel.errorMessage!,
@@ -47,60 +51,84 @@ class QiblaPage extends StatelessWidget {
             return const Center(child: Text('Waiting for sensor data...'));
           }
 
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 40),
-                Text(
-                  'Mecca, Saudi Arabia',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                if (viewModel.distanceToQibla != null)
-                  Text(
-                    '${(viewModel.distanceToQibla! / 1000).toStringAsFixed(1)} km away',
-                    style: const TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                const SizedBox(height: 60),
-                
-                // Compass
-                Expanded(
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: CustomPaint(
-                      painter: QiblaCompassPainter(
-                        heading: viewModel.heading!,
-                        qiblaBearing: viewModel.qiblaBearing!,
-                      ),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final compassSize = math
+                  .min(constraints.maxWidth - 40, constraints.maxHeight * 0.46)
+                  .clamp(220.0, 420.0)
+                  .toDouble();
+
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 24),
+                        Text(
+                          'Mecca, Saudi Arabia',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (viewModel.distanceToQibla != null)
+                          Text(
+                            '${(viewModel.distanceToQibla! / 1000).toStringAsFixed(1)} km away',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        const SizedBox(height: 32),
+                        SizedBox.square(
+                          dimension: compassSize,
+                          child: CustomPaint(
+                            painter: QiblaCompassPainter(
+                              heading: viewModel.heading!,
+                              qiblaBearing: viewModel.qiblaBearing!,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Wrap(
+                            alignment: WrapAlignment.spaceAround,
+                            spacing: 24,
+                            runSpacing: 16,
+                            children: [
+                              _buildInfoColumn(
+                                'Latitude',
+                                viewModel.userLatitude!.toStringAsFixed(4),
+                              ),
+                              _buildInfoColumn(
+                                'Longitude',
+                                viewModel.userLongitude!.toStringAsFixed(4),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
                   ),
                 ),
-                
-                const SizedBox(height: 40),
-                // Location Details
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildInfoColumn('Latitude', viewModel.userLatitude!.toStringAsFixed(4)),
-                      _buildInfoColumn('Longitude', viewModel.userLongitude!.toStringAsFixed(4)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
@@ -110,20 +138,11 @@ class QiblaPage extends StatelessWidget {
   Widget _buildInfoColumn(String label, String value) {
     return Column(
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.grey,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
     );

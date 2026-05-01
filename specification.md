@@ -1,102 +1,145 @@
-# Specification and Design of a Flutter-based Qibla Direction App
+# Specification and Design of Aira Qibla Compass
 
 ## 1. Introduction
-This application helps users determine the Qibla direction (the direction of the Ka'bah in Masjid al‑Harām, Mecca) by using the device’s compass and GPS sensors. It is built with Flutter so it runs on both Android and iOS from a single code base.
+Aira Qibla Compass is a Flutter application that helps users determine the Qibla direction by combining the device's location and compass heading. The app calculates the bearing and distance to the Ka'bah in Mecca locally on the device, then visualizes the direction through a custom compass.
+
+The current implementation targets mobile use first. Android and iOS project configuration is present, while desktop and web folders remain generated Flutter platform scaffolding.
 
 ## 2. Goals
-- Provide an accurate real‑time Qibla direction.
-- Use the compass for device orientation and GPS for the user's location.
-- Visualise the direction with a rotating arrow or compass that points toward Qibla relative to magnetic north.
+- Provide a real-time Qibla direction from the user's current location.
+- Use GPS/location services for latitude and longitude.
+- Use the device compass for heading relative to magnetic north.
 - Display the user's latitude, longitude, and distance to the Ka'bah.
+- Keep Qibla calculations local and avoid transmitting location data to external services.
+- Provide a fallback from the last known or cached location while waiting for fresh GPS data.
 
-## 3. Core Features
-| # | Feature | Description |
-|---|---------|-------------|
-| 1 | Location detection | Use the `geolocator` plugin to obtain the user's latitude and longitude. |
-| 2 | Compass reading | Use `flutter_compass` or `sensors_plus` to obtain the azimuth (angle relative to magnetic north). |
-| 3 | Qibla calculation | Compute the bearing from the user’s location to the Ka'bah (21.4225° N, 39.8262° E) using the haversine formula. |
-| 4 | Direction visualisation | Show a digital compass with a rotating arrow that aligns with the calculated Qibla bearing. |
-| 5 | Information display | Show latitude, longitude, location accuracy, distance to the Ka'bah, and the last update timestamp. |
-| 6 | Compass calibration | Provide a "figure‑8" gesture instruction when calibration is required. |
-| 7 | Offline mode | Cache the last known location and compass heading for use when GPS is unavailable. |
-| 8 | Settings | Choose distance units (meters/kilometers), light/dark theme, and automatic update notifications. |
+## 3. Current Features
+| # | Feature | Status | Description |
+|---|---------|--------|-------------|
+| 1 | Location detection | Implemented | Uses `geolocator` to request permissions and stream position updates. |
+| 2 | Compass reading | Implemented | Uses `flutter_compass` to stream heading events. |
+| 3 | Qibla calculation | Implemented | Uses `Geolocator.bearingBetween` and `Geolocator.distanceBetween` with Ka'bah coordinates. |
+| 4 | Direction visualization | Implemented | Uses `CustomPainter` to draw a compass and Qibla arrow. |
+| 5 | Basic information display | Implemented | Shows latitude, longitude, and distance to Mecca. |
+| 6 | Last location fallback | Implemented | Uses last known location first, then falls back to locally cached coordinates. |
+| 7 | Responsive layout | Implemented | Uses a scroll-safe layout with adaptive compass sizing. |
+| 8 | Light/dark theme | Implemented | Follows the system theme through `ThemeMode.system`. |
+| 9 | Unit tests | Implemented | Covers Qibla bearing and distance calculations. |
 
-## 4. Functional Requirements
-- The app must request and obtain permissions for location and compass sensors at runtime.
-- Qibla bearing calculation should complete within 1 second for a responsive UI.
-- The UI must adapt to both portrait and landscape orientations.
-- The app must gracefully handle missing compass hardware by showing an appropriate error message.
-- When permissions are denied, the app should guide the user to enable them in the system settings.
+## 4. Not Implemented Yet
+The following items are future scope and should not be described as available app features until built:
 
-## 5. Non‑Functional Requirements
-- **Performance**: UI rendering > 60 FPS.
-- **Battery**: Minimise sensor usage; pause streams when the app moves to the background.
-- **Privacy**: No location data is transmitted to external servers; all calculations are performed locally.
-- **Compatibility**: Android 5.0 (API 21) and iOS 12.0 or newer.
-- **App size**: Target a release bundle < 30 MB (Flutter apps typically exceed 15 MB).
-- **Security**: Permissions are requested only at runtime and never persisted in storage.
+- Compass calibration guidance, such as figure-8 instructions.
+- Location accuracy display.
+- Last update timestamp display.
+- Unit settings for distance display.
+- In-app theme selection.
+- Notification settings.
+- Graceful system-settings deep link for permanently denied permissions.
+- Explicit app lifecycle handling to pause streams while backgrounded.
+- Production Android release signing.
 
-## 6. Architecture Overview
-```
+## 5. Functional Requirements
+- The app requests runtime location permission through `geolocator`.
+- If permission is denied or location services are disabled, the UI shows an error state and a retry action.
+- Once permission is available, the app attempts to load a last known location before waiting for stream updates.
+- Fresh location stream values are cached locally via `shared_preferences`.
+- Location and compass streams are combined in `QiblaViewModel` using `Rx.combineLatest2`.
+- The compass screen updates when either fresh location or heading values arrive.
+- Retry must not create duplicate stream subscriptions.
+- The main Qibla UI must remain usable on small screens and landscape layouts.
+
+## 6. Non-Functional Requirements
+- **Performance**: Compass rendering should remain lightweight and suitable for smooth UI updates.
+- **Privacy**: Location data is calculated locally and is not sent to external services by the app.
+- **Persistence**: Only the last latitude and longitude are stored locally for fallback behavior.
+- **Compatibility**: The app is configured through Flutter's generated Android/iOS platform projects and plugin requirements.
+- **Maintainability**: Business logic stays outside UI widgets where practical, with services handling hardware/plugin access and the viewmodel coordinating state.
+
+## 7. Architecture Overview
+```text
 lib/
 ├── main.dart
 ├── core/
-│   ├── utils/
-│   │   ├── location_helper.dart   // wrapper around geolocator
-│   │   ├── compass_helper.dart    // wrapper around compass sensor
-│   │   ├── qibla_calc.dart        // haversine + bearing calculation
-│   │   └── constants.dart        // app‑wide constants (e.g., Ka'bah coordinates)
-│   └── services/
-│       ├── location_service.dart
-│       └── compass_service.dart
+│   ├── services/
+│   │   ├── compass_service.dart
+│   │   └── location_service.dart
+│   └── utils/
+│       ├── constants.dart
+│       └── qibla_calc.dart
 ├── features/
 │   └── qibla/
 │       ├── ui/
-│       │   ├── qibla_page.dart
-│       │   └── qibla_compass_painter.dart   // CustomPaint implementation
-│       ├── viewmodel/
-│       │   └── qibla_viewmodel.dart        // State management (Provider or Riverpod)
-│       └── repository/
-│           └── qibla_repository.dart
-├── themes/
-│   └── app_theme.dart
-└── assets/
-    └── images/        // compass icons, arrow SVGs, etc.
+│       │   ├── qibla_compass_painter.dart
+│       │   └── qibla_page.dart
+│       └── viewmodel/
+│           └── qibla_viewmodel.dart
+└── themes/
+    └── app_theme.dart
+
+test/
+└── core/
+    └── utils/
+        └── qibla_calc_test.dart
 ```
-- State management: **Provider** for simplicity or **Riverpod** for greater scalability.
-- Location and compass services are singleton objects exposing `Stream`s.
-- The UI draws the compass using `CustomPaint` for high performance.
 
-## 7. Data Flow
-1. Request runtime permissions for location and sensor.
-2. `LocationService` starts a location stream.
-3. `CompassService` starts a heading (azimuth) stream.
-4. Streams are combined (e.g., using `Rx.combineLatest2`) to produce a unified data model.
-5. `QiblaViewModel` receives the combined data, calls `QiblaCalculator.bearing()` to compute the Qibla bearing.
-6. The bearing is exposed via a `ChangeNotifier`/`StateNotifier`.
-7. `QiblaPage` listens to the notifier and:
-   - Rotates the compass arrow based on `heading – bearing`.
-   - Updates textual information (coordinates, distance, timestamp).
+- `main.dart` wires dependencies with `Provider` and `ChangeNotifierProvider`.
+- `LocationService` wraps `geolocator` permission, stream, last-known location, and cached coordinate access.
+- `CompassService` wraps `flutter_compass` heading events.
+- `QiblaViewModel` combines location and compass streams, owns UI state, and avoids duplicate subscriptions on retry.
+- `QiblaCalc` performs bearing and distance calculations to the Ka'bah.
+- `QiblaPage` renders loading, error, waiting, and compass states.
+- `QiblaCompassPainter` draws the compass face, cardinal markers, and Qibla arrow.
 
-## 8. Technology Stack & Plugins
-| Need | Plugin (pub.dev) | Notes |
-|------|------------------|-------|
-| Location | `geolocator: ^10.0.0` | GPS access and permission handling |
-| Compass | `flutter_compass: ^0.5.0` or `sensors_plus: ^4.0.0` | Provides azimuth readings |
-| State Management | `provider: ^6.0.0` (or `riverpod: ^2.0.0`) | Simple or scalable state handling |
-| Graphics | `flutter_svg: ^2.0.0` (optional) | SVG assets for compass graphics |
-| Streams | `rxdart: ^0.28.0` | Stream composition utilities |
-| Logging | `logger: ^2.0.0` | Structured logging |
-| Permissions | `permission_handler: ^11.0.0` | Centralised runtime permission requests |
-| Splash & Icons | `flutter_native_splash: ^2.3.0`, `flutter_launcher_icons: ^0.13.1` | App startup splash screen and launcher icons |
+## 8. Data Flow
+1. `main.dart` creates `LocationService`, `CompassService`, and `QiblaViewModel`.
+2. `QiblaViewModel` requests/checks location permission through `LocationService`.
+3. If permission is unavailable, the viewmodel exposes an error message for `QiblaPage`.
+4. If permission is available, the viewmodel tries `getLastKnownLocation()`.
+5. If no last known location exists, the viewmodel tries locally cached coordinates.
+6. The viewmodel starts the location and compass streams.
+7. `Rx.combineLatest2` emits once both a `Position` and `CompassEvent` are available.
+8. The latest location is cached locally.
+9. `QiblaCalc` calculates the Qibla bearing and distance.
+10. `QiblaPage` rebuilds from `ChangeNotifier` state and passes heading/bearing values to `QiblaCompassPainter`.
 
-## 9. Privacy & Security Note
-- No location data is sent to any external service.
-- Permissions are requested only while the app is in the foreground.
-- Cached location/heading data is kept in memory only and cleared when the app is terminated.
-- A short privacy policy will be included in the Play Store and App Store listings, describing the above points.
+## 9. Technology Stack & Plugins
+| Need | Package | Notes |
+|------|---------|-------|
+| Framework | `flutter` | Cross-platform UI framework. |
+| State management | `provider: ^6.1.5+1` | Dependency injection and `ChangeNotifier` state updates. |
+| Location | `geolocator: ^14.0.2` | Location permission, last known position, position stream, bearing, and distance helpers. |
+| Compass | `flutter_compass: ^0.8.1` | Heading stream from device compass sensors. |
+| Streams | `rxdart: ^0.28.0` | Combines location and compass streams. |
+| Local cache | `shared_preferences: ^2.5.5` | Stores last latitude and longitude fallback. |
+| Logging | `logger: ^2.7.0` | Logs service-level errors and warnings. |
+| Lints | `flutter_lints: ^6.0.0` | Static analysis rules. |
+| Icons | `flutter_launcher_icons: ^0.14.4` | Launcher icon generation configuration. |
+| Splash | `flutter_native_splash: ^2.4.7` | Splash configuration dependency. |
+
+## 10. Privacy & Security Note
+- No location data is sent to an external API by this app.
+- Bearing and distance calculations are performed locally.
+- Cached fallback data is limited to latitude and longitude in local app storage.
+- Location permission is requested at runtime.
+- iOS location usage strings are configured in `ios/Runner/Info.plist`.
+- Android fine and coarse location permissions are configured in `android/app/src/main/AndroidManifest.xml`.
+
+## 11. Validation
+Current quality checks:
+
+```bash
+flutter analyze
+flutter test
+```
+
+The test suite currently covers:
+
+- Zero distance at the Ka'bah coordinates.
+- Expected Qibla bearing from Jakarta.
+- Expected distance from Jakarta to the Ka'bah.
 
 ---
-*This specification serves as a development reference. Adjustments may be made as the project evolves.*
+This specification describes the current implementation as of the latest project changes. Future features should update this document when implemented.
 
 **Flutter Application ID:** `id.web.sofy.qiblacompass`
